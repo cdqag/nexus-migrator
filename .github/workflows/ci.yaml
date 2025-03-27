@@ -96,6 +96,7 @@ jobs:
       - name: Build
         id: build
         env:
+          NEW_VERSION: ${{ needs.prepare.outputs.new-version }}
           RUNNER_OS: ${{ runner.os }}
           RUNNER_ARCH: ${{ runner.arch }}
         shell: bash
