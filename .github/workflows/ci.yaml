@@ -2,16 +2,17 @@ name: 🛠️ CI
 
 on:
   push:
-    branches: [ "gha" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "Prepare"
     outputs:
       new-version: ${{ steps.version.outputs.new-version }}
+      release-id: ${{ steps.release.outputs.id }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
@@ -22,16 +23,40 @@ jobs:
         with:
           pep440-compliant: true
 
+      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+        name: Create Changelog
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          fromTag: ${{ github.ref_name }}
+          toTag: ${{ steps.version.outputs.current-version }}
+          writeToFile: false
+          excludeTypes: build,docs,style
+          excludeScopes: deploy,version
+          includeInvalidCommits: true
+  
+      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+        name: Release
+        id: release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ github.token }}
+          tag: ${{ steps.version.outputs.new-version }}
+          body: ${{ steps.changelog.outputs.changes }}
+          draft: true
+
   ci:
     needs: prepare
     strategy:
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - windows-2022
+          - macos-14
     runs-on: ${{ matrix.os }}
-    name: "CI @${{ matrix.os }}"
+    name: "CI [${{ matrix.os }}]"
     
     steps:
       - name: Checkout the repository
@@ -61,14 +86,47 @@ jobs:
           poetry install
 
       - name: Build
+        id: build
         env:
           RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
         shell: bash
         run: |
-          BIN_NAME="nexus-migrator"
+          BIN_NAME="nexus-migrator_${RUNNER_OS}_${RUNNER_ARCH}"
           if [ "$RUNNER_OS" == "Windows" ]; then
             BIN_NAME="$BIN_NAME.exe"
           fi
-          echo "BIN_NAME=$BIN_NAME" >> $GITHUB_ENV
+          echo "name=$BIN_NAME" >> $GITHUB_OUTPUT
 
-          poetry run pyinstaller --onefile --clean --name $BIN_NAME cli.py
+          poetry run pyinstaller --onefile --clean --name "$BIN_NAME" cli.py
+
+      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+        name: Upload asset
+        uses: AButler/upload-release-assets@v3.0
+        with:
+          repo-token: ${{ github.token }}
+          files: "dist/${{ steps.build.outputs.name }}"
+          release-id: ${{ needs.prepare.outputs.release-id }}
+
+  finish:
+    needs: [ prepare, ci ]
+    if: github.event_name != 'pull_request' && github.ref_name == 'master' && always()
+    runs-on: ubuntu-24.04
+    name: "Finish"
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASED_TAG: ${{ needs.prepare.outputs.new-version }}
+    
+    steps:
+      - if: needs.ci.result != 'success'
+        name: Remove release
+        shell: bash
+        run: |
+          gh release delete $RELEASED_TAG --cleanup-tag --yes
+
+      - if: needs.ci.result == 'success'
+        name: Publish release
+        shell: bash
+        run: |
+          gh release edit $RELEASED_TAG --draft=false
