@@ -45,14 +45,19 @@ jobs:
           include: 'pyproject\.toml|version\.py'
           flags: 'gm'
 
-      - name: Setup Python Environment
-        uses: cdqag/setup-python-env@v1
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          setup-virtualenv: true
-          install-poetry: true
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+        with:
           poetry-version: 1.8.5
-          install-dependencies: true
+
+      - name: Install dependencies
+        run: |
+          poetry install
 
       - name: Build
         env:
@@ -64,4 +69,4 @@ jobs:
           fi
           echo "BIN_NAME=$BIN_NAME" >> $GITHUB_ENV
 
-          python3 -m pyinstaller --onefile --clean --name $BIN_NAME cli.py
+          poetry run pyinstaller --onefile --clean --name $BIN_NAME cli.py
