@@ -56,12 +56,14 @@ jobs:
           poetry-version: 1.8.5
 
       - name: Install dependencies
+        shell: bash
         run: |
           poetry install
 
       - name: Build
         env:
           RUNNER_OS: ${{ runner.os }}
+        shell: bash
         run: |
           BIN_NAME="nexus-migrator"
           if [ "$RUNNER_OS" == "Windows" ]; then
