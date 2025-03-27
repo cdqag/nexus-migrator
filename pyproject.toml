@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "nexus-migrator"
+version = "0.0.1"
+description = "Tool for migrating artifacts between Sonatype Nexus repositories"
+authors = ["Marek Sierociński <marek.sierocinski@cdq.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "~3.12"
+httpx = "^0.28.1"
+typer = "^0.15.2"
+pydantic = "^2.10.6"
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
