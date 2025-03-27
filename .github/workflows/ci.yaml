@@ -12,6 +12,7 @@ jobs:
     name: "Prepare"
     outputs:
       new-version: ${{ steps.version.outputs.new-version }}
+      release-tag: ${{ steps.set.outputs.tag }}
       release-id: ${{ steps.release.outputs.id }}
     steps:
       - name: Checkout the repository
@@ -35,6 +36,13 @@ jobs:
           excludeTypes: build,docs,style
           excludeScopes: deploy,version
           includeInvalidCommits: true
+
+      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+        name: Set variables
+        id: set
+        shell: bash
+        run: |
+          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
   
       - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
         name: Release
@@ -42,7 +50,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           token: ${{ github.token }}
-          tag: ${{ steps.version.outputs.new-version }}
+          tag: ${{ steps.set.outputs.tag }}
           body: ${{ steps.changelog.outputs.changes }}
           draft: true
 
@@ -92,7 +100,7 @@ jobs:
           RUNNER_ARCH: ${{ runner.arch }}
         shell: bash
         run: |
-          BIN_NAME="nexus-migrator_${RUNNER_OS}_${RUNNER_ARCH}"
+          BIN_NAME="nexus-migrator-${NEW_VERSION}_${RUNNER_OS}_${RUNNER_ARCH}"
           if [ "$RUNNER_OS" == "Windows" ]; then
             BIN_NAME="$BIN_NAME.exe"
           fi
@@ -116,17 +124,20 @@ jobs:
 
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASED_TAG: ${{ needs.prepare.outputs.new-version }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release-tag }}
     
     steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
       - if: needs.ci.result != 'success'
         name: Remove release
         shell: bash
         run: |
-          gh release delete $RELEASED_TAG --cleanup-tag --yes
+          gh release delete $RELEASE_TAG --cleanup-tag --yes
 
       - if: needs.ci.result == 'success'
         name: Publish release
         shell: bash
         run: |
-          gh release edit $RELEASED_TAG --draft=false
+          gh release edit $RELEASE_TAG --draft=false
