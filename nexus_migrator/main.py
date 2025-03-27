@@ -2,14 +2,13 @@ import typer
 from typing_extensions import Annotated
 
 from .migrate import migrate as migrate_fn
-
-__version__ = "0.0.1"
+from .version import version as app_version
 
 cli = typer.Typer()
 
 def version_callback(value: bool):
     if value:
-        typer.echo(f"Grand Nexus Migrator version {__version__}")
+        typer.echo(f"Nexus Migrator v{app_version}\n\nCreated by CDQ AG - https://www.cdq.com\nSharing is caring! ❤️\n\nLicensed under the Apache License 2.0 - https://github.com/cdqag/nexus-migrator/blob/main/LICENSE")
         raise typer.Exit()
 
 @cli.command()

@@ -1,0 +1,61 @@
+name: 🛠️ CI
+
+on:
+  push:
+    branches: [ "gha" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    name: "Prepare"
+    outputs:
+      new-version: ${{ steps.version.outputs.new-version }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Calculate version
+        id: version
+        uses: cdqag/action-version@v2
+        with:
+          pep440-compliant: true
+
+  ci:
+    needs: prepare
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+    name: "CI @${{ matrix.os }}"
+    
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Bump version in known files
+        uses: mingjun97/file-regex-replace@v1
+        with:
+          regex: '^version ?= ?"[0-9\.]+"'
+          replacement: 'version = "${{ needs.prepare.outputs.new-version }}"'
+          include: 'pyproject\.toml|version\.py'
+          flags: 'gm'
+
+      - name: Setup Python Environment
+        uses: cdqag/setup-python-env@v1
+        with:
+          python-version: '3.12'
+          install-poetry: true
+          poetry-version: 1.8.5
+          install-dependencies: true
+
+      - name: Build
+        env:
+          RUNNER_OS: ${{ runner.os }}
+        run: |
+          echo "Building for $RUNNER_OS"
+          pyinstaller --onefile --clean --name nexus-migrator cli.py
