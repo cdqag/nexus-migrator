@@ -49,6 +49,7 @@ jobs:
         uses: cdqag/setup-python-env@v1
         with:
           python-version: '3.12'
+          setup-virtualenv: true
           install-poetry: true
           poetry-version: 1.8.5
           install-dependencies: true
@@ -63,4 +64,4 @@ jobs:
           fi
           echo "BIN_NAME=$BIN_NAME" >> $GITHUB_ENV
 
-          poetry run pyinstaller --onefile --clean --name $BIN_NAME cli.py
+          python3 -m pyinstaller --onefile --clean --name $BIN_NAME cli.py
