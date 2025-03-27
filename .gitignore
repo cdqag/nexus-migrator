@@ -1,0 +1,23 @@
+# Gitignore
+## IDE
+.idea/
+.vscode/
+
+## OS Files
+.DB_Store
+Thumbs.db
+.env
+
+## Logs
+*.log
+
+## Python
+.venv/
+__pycache__/
+build/
+dist/
+*.egg-info/
+*.spec
+
+## Other
+**sandbox**
