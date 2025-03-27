@@ -57,5 +57,10 @@ jobs:
         env:
           RUNNER_OS: ${{ runner.os }}
         run: |
-          echo "Building for $RUNNER_OS"
-          pyinstaller --onefile --clean --name nexus-migrator cli.py
+          BIN_NAME="nexus-migrator"
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            BIN_NAME="$BIN_NAME.exe"
+          fi
+          echo "BIN_NAME=$BIN_NAME" >> $GITHUB_ENV
+
+          poetry run pyinstaller --onefile --clean --name $BIN_NAME cli.py
