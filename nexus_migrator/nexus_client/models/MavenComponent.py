@@ -13,7 +13,9 @@ class MavenComponent(Component):
         if not super().should_download_asset(asset):
             return False
 
-        if asset.path.suffix == ".jar" or asset.path.suffix == ".pom" or asset.path.name == "pom.xml":
+        if (asset.path.suffix == ".jar"
+                or asset.path.suffix == ".pom" or asset.path.name == "pom.xml"
+                or asset.path.suffix == ".module") :
             return True
 
         return False
@@ -30,6 +32,7 @@ class MavenComponent(Component):
 
         jar_file = None
         pom_file = None
+        module_file = None
 
         for asset in self.assets:
             if asset.path.suffix == ".jar":
@@ -46,6 +49,13 @@ class MavenComponent(Component):
 
                 pom_file = asset.localPath
 
+            elif asset.path.suffix == ".module":
+                if not asset.localPath:
+                    raise Exception(
+                        f"Asset {asset.path.name} was not downloaded")
+
+                module_file = asset.localPath
+
         if not jar_file:
             raise Exception("No JAR file found in component")
 
@@ -58,5 +68,13 @@ class MavenComponent(Component):
             payload.data["maven2.generate-pom"] = "false"
         else:
             payload.data["maven2.generate-pom"] = "true"
+
+        if module_file:
+            if pom_file:
+                payload.files["maven2.asset3"] = open(module_file, "rb")
+                payload.data["maven2.asset3.extension"] = "module"
+            else:
+                payload.files["maven2.asset2"] = open(module_file, "rb")
+                payload.data["maven2.asset2.extension"] = "module"
 
         return payload
