@@ -7,6 +7,8 @@ from .factory import factory_component
 from .models.Component import Component
 from ..history import get_historian
 
+HTTP_TIMEOUT = 600  # seconds
+
 
 class NexusClient:
 
@@ -39,7 +41,7 @@ class NexusClient:
                     historian.note_last_continuation_token(continuation_token)
 
             # typer.echo(f"Getting components from page {page}...")
-            res = self.rest_api.get("components", params=params, timeout=600)
+            res = self.rest_api.get("components", params=params, timeout=HTTP_TIMEOUT)
 
             data = res.json()
             for item in data["items"]:
@@ -82,7 +84,7 @@ class NexusClient:
         payload = component.get_upload_payload()
 
         params = {"repository": repository}
-        res = self.rest_api.post("components", params=params, data=payload.data, files=payload.files)
+        res = self.rest_api.post("components", params=params, data=payload.data, files=payload.files, timeout=HTTP_TIMEOUT)
 
         if res.status_code != 204:
             raise Exception(f"Error uploading component: {res.text}")
