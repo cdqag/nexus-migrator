@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import httpx
+from httpx_retries import RetryTransport, Retry
 
 from .factory import factory_component
 from .models.Component import Component
@@ -14,7 +15,10 @@ class NexusClient:
 
         base_service_url = httpx.URL(base_url, path="/service/rest/v1")
 
-        self.rest_api = httpx.Client(base_url=base_service_url, auth=basic_auth)
+        retry = Retry(total=3, backoff_factor=10)
+        transport = RetryTransport(retry=retry)
+
+        self.rest_api = httpx.Client(base_url=base_service_url, auth=basic_auth, transport=transport)
 
     def list_components(self, repository: str, downloaded_in_days: int = 0):
         due_date = None
