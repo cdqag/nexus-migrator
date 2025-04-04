@@ -3,13 +3,17 @@ from typing import Optional
 from .models.Component import Component
 from .models.HelmComponent import HelmComponent
 from .models.MavenComponent import MavenComponent
+from .models.GradlePluginComponent import GradlePluginComponent
 from .models.RawComponent import RawComponent
 from .models.PypiComponent import PypiComponent
 
 
 def factory_component(item_raw: dict) -> Optional[Component]:
     if item_raw["format"] == "maven2":
-        return create_maven_component(item_raw)
+        if item_raw["name"].endswith("gradle.plugin"):
+            return create_gradle_plugin_component(item_raw)
+        else:
+            return create_maven_component(item_raw)
 
     elif item_raw["format"] == "pypi":
         return create_pypi_component(item_raw)
@@ -36,6 +40,9 @@ def create_maven_component(item_raw: dict) -> Optional[MavenComponent]:
         raise ValueError("No JAR file found in component")
 
     return component
+
+def create_gradle_plugin_component(item_raw: dict) -> Optional[GradlePluginComponent]:
+    return GradlePluginComponent(**item_raw)
 
 def create_pypi_component(item_raw: dict) -> Optional[PypiComponent]:
     component = PypiComponent(**item_raw)
