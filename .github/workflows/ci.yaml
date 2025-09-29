@@ -2,143 +2,129 @@ name: 🛠️ CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+    - master
+    paths-ignore:
+    - .cdq/**
   pull_request:
-    branches: [ "master" ]
+    branches:
+    - master
 
 jobs:
   prepare:
     runs-on: ubuntu-24.04
-    name: "Prepare"
+    name: Prepare
     outputs:
       new-version: ${{ steps.version.outputs.new-version }}
       release-tag: ${{ steps.set.outputs.tag }}
       release-id: ${{ steps.release.outputs.id }}
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v4
+    - name: Checkout the repository
+      uses: actions/checkout@v4
+    - name: Calculate version
+      id: version
+      uses: cdqag/action-version@v2
+      with:
+        pep440-compliant: 'true'
+    - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+      name: Create Changelog
+      id: changelog
+      uses: requarks/changelog-action@v1
+      with:
+        token: ${{ github.token }}
+        fromTag: ${{ github.ref_name }}
+        toTag: ${{ steps.version.outputs.current-version }}
+        writeToFile: 'false'
+        excludeTypes: build,docs,style
+        excludeScopes: deploy,version
+        includeInvalidCommits: 'true'
+    - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+      name: Set variables
+      id: set
+      shell: bash
+      run: 'echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Calculate version
-        id: version
-        uses: cdqag/action-version@v2
-        with:
-          pep440-compliant: true
-
-      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
-        name: Create Changelog
-        id: changelog
-        uses: requarks/changelog-action@v1
-        with:
-          token: ${{ github.token }}
-          fromTag: ${{ github.ref_name }}
-          toTag: ${{ steps.version.outputs.current-version }}
-          writeToFile: false
-          excludeTypes: build,docs,style
-          excludeScopes: deploy,version
-          includeInvalidCommits: true
-
-      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
-        name: Set variables
-        id: set
-        shell: bash
-        run: |
-          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
-  
-      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
-        name: Release
-        id: release
-        uses: ncipollo/release-action@v1
-        with:
-          token: ${{ github.token }}
-          tag: ${{ steps.set.outputs.tag }}
-          body: ${{ steps.changelog.outputs.changes }}
-          draft: true
-
+        '
+    - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+      name: Release
+      id: release
+      uses: ncipollo/release-action@v1
+      with:
+        token: ${{ github.token }}
+        tag: ${{ steps.set.outputs.tag }}
+        body: ${{ steps.changelog.outputs.changes }}
+        draft: 'true'
   ci:
     needs: prepare
     strategy:
       matrix:
         os:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
-          - windows-2022
-          - macos-14
+        - ubuntu-24.04
+        - ubuntu-24.04-arm
+        - windows-2022
+        - macos-14
     runs-on: ${{ matrix.os }}
-    name: "CI [${{ matrix.os }}]"
-    
+    name: CI [${{ matrix.os }}]
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v4
+    - name: Checkout the repository
+      uses: actions/checkout@v4
+    - name: Bump version in known files
+      uses: mingjun97/file-regex-replace@v1
+      with:
+        regex: ^version ?= ?"[0-9\.]+"
+        replacement: version = "${{ needs.prepare.outputs.new-version }}"
+        include: pyproject\.toml|version\.py
+        flags: gm
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install Poetry
+      uses: abatilo/actions-poetry@v3
+      with:
+        poetry-version: 1.8.5
+    - name: Install dependencies
+      shell: bash
+      run: 'poetry install
 
-      - name: Bump version in known files
-        uses: mingjun97/file-regex-replace@v1
-        with:
-          regex: '^version ?= ?"[0-9\.]+"'
-          replacement: 'version = "${{ needs.prepare.outputs.new-version }}"'
-          include: 'pyproject\.toml|version\.py'
-          flags: 'gm'
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Poetry
-        uses: abatilo/actions-poetry@v3
-        with:
-          poetry-version: 1.8.5
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          poetry install
-
-      - name: Build
-        id: build
-        env:
-          NEW_VERSION: ${{ needs.prepare.outputs.new-version }}
-          RUNNER_OS: ${{ runner.os }}
-          RUNNER_ARCH: ${{ runner.arch }}
-        shell: bash
-        run: |
-          BIN_NAME="nexus-migrator-${NEW_VERSION}_${RUNNER_OS}_${RUNNER_ARCH}"
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            BIN_NAME="$BIN_NAME.exe"
-          fi
-          echo "name=$BIN_NAME" >> $GITHUB_OUTPUT
-
-          poetry run pyinstaller --onefile --clean --name "$BIN_NAME" cli.py
-
-      - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
-        name: Upload asset
-        uses: AButler/upload-release-assets@v3.0
-        with:
-          repo-token: ${{ github.token }}
-          files: "dist/${{ steps.build.outputs.name }}"
-          release-id: ${{ needs.prepare.outputs.release-id }}
-
+        '
+    - name: Build
+      id: build
+      env:
+        NEW_VERSION: ${{ needs.prepare.outputs.new-version }}
+        RUNNER_OS: ${{ runner.os }}
+        RUNNER_ARCH: ${{ runner.arch }}
+      shell: bash
+      run: "BIN_NAME=\"nexus-migrator-${NEW_VERSION}_${RUNNER_OS}_${RUNNER_ARCH}\"\nif [ \"$RUNNER_OS\" == \"Windows\" ]; then\n  BIN_NAME=\"$BIN_NAME.exe\"\nfi\necho \"name=$BIN_NAME\" >> $GITHUB_OUTPUT\n\npoetry run pyinstaller --onefile --clean --name \"$BIN_NAME\" cli.py\n"
+    - if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
+      name: Upload asset
+      uses: AButler/upload-release-assets@v3.0
+      with:
+        repo-token: ${{ github.token }}
+        files: dist/${{ steps.build.outputs.name }}
+        release-id: ${{ needs.prepare.outputs.release-id }}
   finish:
-    needs: [ prepare, ci ]
+    needs:
+    - prepare
+    - ci
     if: github.event_name != 'pull_request' && github.ref_name == 'master' && always()
     runs-on: ubuntu-24.04
-    name: "Finish"
-
+    name: Finish
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ needs.prepare.outputs.release-tag }}
-    
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v4
+    - name: Checkout the repository
+      uses: actions/checkout@v4
+    - if: needs.ci.result != 'success'
+      name: Remove release
+      shell: bash
+      run: 'gh release delete $RELEASE_TAG --cleanup-tag --yes
 
-      - if: needs.ci.result != 'success'
-        name: Remove release
-        shell: bash
-        run: |
-          gh release delete $RELEASE_TAG --cleanup-tag --yes
+        '
+    - if: needs.ci.result == 'success'
+      name: Publish release
+      shell: bash
+      run: 'gh release edit $RELEASE_TAG --draft=false
 
-      - if: needs.ci.result == 'success'
-        name: Publish release
-        shell: bash
-        run: |
-          gh release edit $RELEASE_TAG --draft=false
+        '

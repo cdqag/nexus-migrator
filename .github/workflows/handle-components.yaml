@@ -1,0 +1,13 @@
+name: 🍒 Handle Components
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".cdq/components.yaml"
+
+jobs:
+  run:
+    uses: cdqag/workflow-cdq/.github/workflows/handle-components-metadata.yaml@v1
+    secrets: inherit
