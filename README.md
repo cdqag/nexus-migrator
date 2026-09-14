@@ -65,6 +65,12 @@ own tool and share it with the community.
 > Nexus Components API is slow (especially Maven repositories), so the migration process can take a long time.
 > We recommend to run the migrator inside a `screen` session, so you can detach from the session and the migrator will continue to run.
 
+## About Creator
+
+![CDQ Logo](https://www.cdq.com/themes/custom/gavias_nonid/logo.svg)
+
+This action has been created and is maitained by [CDQ - Data Quality Solutions &amp; Services for Master Data](https://www.cdq.com/).
+
 ## License
 
 This project is licensed under the Apache-2.0 License. See the [LICENSE](LICENSE) file for details.
