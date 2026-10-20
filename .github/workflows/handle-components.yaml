@@ -1,0 +1,19 @@
+name: 🍒 Handle Components
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches: ["master"]
+    paths: [".cdq/components.yaml"]
+
+  pull_request:
+    branches: ["master"]
+    paths: [".cdq/components.yaml"]
+
+jobs:
+  run:
+    uses: cdqag/workflow-cdq/.github/workflows/handle-components-metadata.yaml@v2
+    secrets:
+      INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+      INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
